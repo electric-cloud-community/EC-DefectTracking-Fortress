@@ -1,0 +1,285 @@
+# -*-Perl-*-
+# Fortress.ntest -
+# Exercise procedure CrateDefects in EC-DefectTracking-Fortress
+#
+# Copyright (c) 2005-2010 Electric Cloud, Inc.
+# All rights reserved
+
+use strict;
+use ECTest;
+use ECSelenium;
+require "$::gTestFileDir/../../EC-DefectTracking/systemtest/ntest.common";
+$::gProjectImported = 0;
+$::gConfigCreated = 0;
+
+
+sub importProject() {
+    assertOK($::N->import({ file =>"$::gTestFileDir/fortress-CreateDefects.xml", path  => '/projects/fortress-CreateDefects', force => 1} ), 'import fortress-CreateDefects project');
+    assertOK($::N->getProcedure('fortress-CreateDefects', 'cfgDoesNotExist'),'cfgDoesNotExist procedure exists');
+    $::gProjectImported = 1;
+} 
+
+sub createConfig() {
+    my $xpath = $::N->runProcedure("$::gPlugin_name", { procedureName => 'CreateConfiguration', pollInterval  => '0.2', timeout => 600, actualParameter => [  { actualParameterName => 'config', value => 'fortressCfgTestServer' }, 
+            { actualParameterName => 'desc', value => 'Fortress configuration' },  
+            { actualParameterName => 'credential', value => 'test' }, 
+            { actualParameterName => 'url', value => 'http://velecloudserver' },
+            { actualParameterName => 'project', value => '100' }, 
+            { actualParameterName => 'server', value => 'VautPro' }, 
+        ],
+        credential => [
+            { credentialName => 'test', userName => 'admin', password => 'Admn1234', },
+        ],
+        });
+    assertOK($xpath, 'run create configuration procedure');
+    my $jobId = 0;
+    my $status = '';
+    assertDef($xpath, 'runProcedure finished without a timeout');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    writeFile("$::gCurrentTestDir/createConfiguration.log","====Job Details====\n$xpath->{_xml}\n");
+    $xpath = $::N->getProperty("/projects/$::ECdt/defectTracking_cfgs/fortressCfgTestServer/defectTrackingPlugin");
+    assertEq('EC-DefectTracking-Fortress',$xpath->findvalue('//value')->string_value, 'configuration type');
+    $xpath = $::N->getCredential("$::ECdt",'fortressCfgTestServer');
+    assertEq('admin',$xpath->findvalue("//userName")->string_value, 'Credential user');
+    $::gConfigCreated = 1;
+}
+
+sub doSetup() {
+    if(! $::gProjectImported) {
+        importProject();
+    }
+    if (! $::gConfigCreated) {
+        createConfig();
+    }
+}
+
+ntest 'cfgDoesNotExist', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-CreateDefects', { procedureName => 'cfgDoesNotExist', pollInterval  => '1', timeout       => 600, actualParameter => [
+                {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $logFileName = $ws . '/' . $xpath->findvalue("//jobStep[stepName='fortress - Create Defects']/calledProcedure/jobStep[stepName='runMethod']/logFileName");
+    my $data = readFile($logFileName);
+    writeFile("$::gCurrentTestDir/cfgDoesNotExist.log","====Job Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Could not find configuration cfgDoesNotExist', $data, 'cfgDoesNotExist output');
+};
+
+ntest 'noDefectsToCreate', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-CreateDefects', { procedureName => 'noDefectsToCreate', pollInterval  => '1', timeout       => 600, actualParameter => [
+                {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $logFileName = $ws . '/' . $xpath->findvalue("//jobStep[stepName='fortress - Create Defects']/calledProcedure/jobStep[stepName='runMethod']/logFileName");
+    my $data = readFile($logFileName);
+    writeFile("$::gCurrentTestDir/noDefectsToCreate.log","====Job Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('No Errors, so no Defects to create', $data, 'noDefectsToCreate output');
+};
+
+ntest 'propertiesContainsOneDefect', {}, sub {
+    doSetup();
+    $::gFakeCmdOutput  = 'Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock';
+    my $xpath = $::N->runProcedure('fortress-CreateDefects', { procedureName => 'propertiesContainsOneDefect', pollInterval  => '1', timeout       => 600, actualParameter => [
+                {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakepropertiesContainsOneDefect();
+    writeFile("$::gCurrentTestDir/propertiesContainsOneDefect.log","====Job Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock', $data, 'propertiesContainsOneDefect output');
+};
+
+sub runfakepropertiesContainsOneDefect
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock 
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6271
+action createDefects returned:";
+    return $log;
+}
+
+ntest 'propertiesContainsTwoDefects', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-CreateDefects',  { procedureName => 'propertiesContainsTwoDefects', pollInterval  => '1', timeout       => 600,
+            actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status'); 
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete"); 
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakepropertiesContainsTwoDefects();
+    writeFile("$::gCurrentTestDir/propertiesContainsTwoDefects.log","====Job Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock', $data, 'propertiesContainsTwoDefects output');
+    assertSubstring('Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock2', $data, 'propertiesContainsTwoDefects output');
+};
+
+sub runfakepropertiesContainsTwoDefects
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock 
+Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock2 
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6272
+action createDefects returned:";
+    return $log;
+}
+
+ntest 'reportLinkCreated', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-CreateDefects', { procedureName => 'reportLinkCreated',pollInterval  => '1',timeout       => 600,actualParameter => [
+                {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakereportLinkCreated();
+    writeFile("$::gCurrentTestDir/reportLinkCreated.log","====Job Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Creating link', $data, 'reportLinkCreated output');
+};
+
+sub runfakereportLinkCreated
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock 
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6273
+action createDefects returned:";
+    return $log;
+}
+
+ntest 'reportLinkCreatedManual', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-CreateDefects', { procedureName => 'reportLinkCreatedManual', pollInterval  => '1', timeout       => 600, actualParameter => [
+                {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakereportLinkCreatedManual();
+    writeFile("$::gCurrentTestDir/reportLinkCreatedManual.log","====Job Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Creating link', $data, 'reportLinkCreatedManual output');
+};
+
+sub runfakereportLinkCreatedManual
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Trying to get Property /myJob/ecTestFailures/Step35469-testBlockUnblock 
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6273
+action createDefects returned:";
+    return $log;
+}

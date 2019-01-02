@@ -1,0 +1,44 @@
+<editor>
+    <formElement>
+        <type>entry</type>
+        <label>Configuration Name:</label>
+        <property>config</property>
+        <required>1</required>
+    <documentation>Provide a unique name for the configuration, keeping in mind that you may need to create additional configurations over time.</documentation>
+    </formElement>
+    <formElement>
+        <type>textarea</type>
+        <label>Description:</label>
+        <property>desc</property>
+        <documentation>You can supply a text description for your reference only. Commander does not use this information.</documentation>
+        <value>Fortress configuration</value>
+    </formElement>
+    <formElement>
+        <type>credential</type>
+        <label>Login As:</label>
+        <property>credential</property>
+        <required>1</required>
+        <documentation>The user name and password to use to connect to the specified Fortress URL.</documentation>
+    </formElement>
+    <formElement>
+        <type>entry</type>
+        <label>URL:</label>
+        <property>url</property>
+        <required>1</required>
+        <documentation>The URL to use to connect to a Fortress server.  For example: http://10.10.10.10:8080 or http://yourFortressserver</documentation>
+    </formElement>
+    <formElement>
+        <type>entry</type>
+        <label>ProjectID:</label>
+        <property>project</property>
+        <required>1</required>
+    <documentation>A unique project for this configuration.</documentation>
+    </formElement>
+    <formElement>
+        <type>entry</type>
+        <label>Server:</label>
+        <property>server</property>
+        <required>1</required>
+    <documentation>A unique server for this configuration.</documentation>
+    </formElement>
+</editor>

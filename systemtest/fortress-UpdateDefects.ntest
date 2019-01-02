@@ -1,0 +1,416 @@
+# -*-Perl-*-
+# fortress.ntest -
+#
+# Exercise procedure UpdateDefects in EC-DefectTracking-Fortress
+#
+# Copyright (c) 2005-2010 Electric Cloud, Inc.
+# All rights reserved
+
+use strict;
+use ECTest;
+use ECSelenium;
+require "$::gTestFileDir/../../EC-DefectTracking/systemtest/ntest.common";
+$::gProjectImported = 0;
+$::gConfigCreated = 0;
+
+sub importProject() {
+    assertOK($::N->import({ file =>"$::gTestFileDir/fortress-UpdateDefects.xml", path  => '/projects/fortress-UpdateDefects', force => 1} ), 'import fortress-UpdateDefects project');
+    assertOK($::N->getProcedure('fortress-UpdateDefects', 'cfgDoesNotExist'),'cfgDoesNotExist procedure exists');
+    $::gProjectImported = 1;
+}
+
+sub createConfig() {
+    my $xpath = $::N->runProcedure("$::gPlugin_name", 
+        { procedureName => 'CreateConfiguration',
+          pollInterval  => '0.2',
+          timeout       => 600,
+          actualParameter => [ 
+            { actualParameterName => 'desc', value => 'Fortress configuration' }, 
+            { actualParameterName => 'url', value => 'http://velecloudserver' },
+            { actualParameterName => 'project', value => '100' }, 
+            { actualParameterName => 'server', value => 'VautPro' }, 
+        ],
+        credential => [
+            { credentialName => 'test', userName => 'admin', password => 'Admn1234', },
+        ],
+        });
+    my $jobId = 0;
+    my $status = '';
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        if ($status ne 'completed') {
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    writeFile("$::gCurrentTestDir/createConfiguration.log","====Job Details====\n$xpath->{_xml}\n");
+    $::gConfigCreated = 1;
+}
+
+sub doSetup() {
+    if(! $::gProjectImported) {
+        importProject();
+    }
+    if (! $::gConfigCreated) {
+        createConfig();
+    }
+}
+
+ntest 'cfgDoesNotExist', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-UpdateDefects', { procedureName => 'cfgDoesNotExist', pollInterval  => '1', timeout       => 600, actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $logFileName = $ws . '/' . $xpath->findvalue("//jobStep[stepName='Fortress - Update Defects']/calledProcedure/jobStep[stepName='runMethod']/logFileName");
+    my $data = readFile($logFileName);
+    writeFile("$::gCurrentTestDir/cfgDoesNotExist.log","====Job 
+
+Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Could not find configuration cfgDoesNotExist', $data, 'cfgDoesNotExist 
+
+output');
+};
+
+ntest 'propertyDoesNotExist', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-UpdateDefects',  { procedureName => 'propertyDoesNotExist', pollInterval  => '1', timeout       => 600, actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakepropertyDoesNotExist();
+    writeFile("$::gCurrentTestDir/propertyDoesNotExist.log","====Job 
+
+Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Error querying for /myJob/propertyDoesNotExist as a property', $data, 'propertyDoesNotExist output');
+};
+
+sub runfakepropertyDoesNotExist
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Error querying for /myJob/propertyDoesNotExist as a property";
+    return $log;
+} 
+
+ntest 'propertyContainsInaccessibleDefectIDs', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-UpdateDefects', { procedureName => 'propertyContainsInaccessibleDefectIDs', pollInterval  => '1', timeout       => 600, actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakepropertyContainsInaccessibleDefectIDs();
+    writeFile("$::gCurrentTestDir/propertyContainsInaccessibleDefectIDs.log","====Job 
+
+Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+
+    assertSubstring('Error trying to get Fortress issue=ID9999999: Defects update completed with some Errors', $data, 'propertyContainsInaccessibleDefectIDs output');
+};
+
+sub runfakepropertyContainsInaccessibleDefectIDs
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Property : ID9999999=Complete
+Current Pair: ID9999999=Complete
+Current idDefect: ID9999999
+Current valueDefect: Complete
+Error: failed trying to udpate ID9999999 to Complete status, with error: BZ::Client::Exception=HASH(0x297c74c) 
+Error trying to get Fortress issue=ID9999999: Defects update completed with some Errors
+action updateDefects returned: 1";
+    return $log;
+} 
+
+ntest 'propertyContainsOneDefectID', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-UpdateDefects', { procedureName => 'propertyContainsOneDefectID', pollInterval  => '1', timeout       => 600, actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakepropertyContainsOneDefectID();
+    writeFile("$::gCurrentTestDir/propertyContainsOneDefectID.log","====Job 
+
+Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Current idDefect: ID1', $data, 'propertyContainsOneDefectID output');
+};
+
+sub runfakepropertyContainsOneDefectID
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Property : ID1=Complete
+Current Pair: ID1=Complete
+Current idDefect: ID1
+Current valueDefect: Complete
+ID1 was successfully updated to Complete status
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6313
+action updateDefects returned:";
+    return $log;
+} 
+
+ntest "urlReportCreatedOneDefectID", {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure("fortress-UpdateDefects", { procedureName => "propertyContainsOneDefectID", pollInterval  => '1', timeout       => 600, actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakeurlReportCreatedOneDefectID();
+    writeFile("$::gCurrentTestDir/urlReportCreatedOneDefectID.log","====Job 
+
+Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Creating link', $data, 'urlReportCreatedOneDefectID output');
+};
+
+sub runfakeurlReportCreatedOneDefectID
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Property : ID1=Complete
+Current Pair: ID1=Complete
+Current idDefect: ID1
+Current valueDefect: Complete
+ID1 was successfully updated to Complete status
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6314
+action updateDefects returned: ";
+    return $log;
+} 
+
+ntest 'propertyContainsTwoDefectID', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-UpdateDefects', { procedureName => 'propertyContainsTwoDefectID', pollInterval  => '1', timeout => 600, actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakepropertyContainsTwoDefectID();
+    writeFile("$::gCurrentTestDir/propertyContainsTwoDefectID.log","====Job 
+
+Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Current idDefect: ID1', $data, 'propertyContainsTwoDefectID output');
+    assertSubstring('Current idDefect: ID4', $data, 'propertyContainsTwoDefectID output');
+};
+
+sub runfakepropertyContainsTwoDefectID
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Property : ID1=Complete,ID4=Open
+Current Pair: ID1=Complete
+Current idDefect: ID1
+Current valueDefect: Complete
+ID1 was successfully updated to Complete status
+Current Pair: ID4=Open
+Current idDefect: ID4
+Current valueDefect: Open
+Error: failed trying to udpate ID4 to Open status, with error: BZ::Client::Exception=HASH(0x296bf58) 
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6315
+Defects update completed with some Errors
+action updateDefects returned: 1";
+    return $log;
+} 
+
+ntest 'closeDefectIssue', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-UpdateDefects', { procedureName => 'closeDefectIssue', pollInterval  => '1', timeout       => 600, actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakecloseDefectIssue();
+    writeFile("$::gCurrentTestDir/closeDefectIssue.log","====Job 
+
+Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('ID4 was successfully updated to Complete status', $data, 'closeDefectIssue output');
+};
+
+sub runfakecloseDefectIssue
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Property : ID4=REOPENED,ID4=Complete
+Current Pair: ID4=REOPENED
+Current idDefect: ID4
+Current valueDefect: REOPENED
+ID4 was successfully updated to REOPENED status
+Current Pair: ID4=Complete
+Current idDefect: ID4
+Current valueDefect: Complete
+ID4 was successfully updated to Complete status
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6317
+action updateDefects returned: ";
+    return $log;
+} 
+
+ntest 'propertyFormatError', {}, sub {
+    doSetup();
+    my $xpath = $::N->runProcedure('fortress-UpdateDefects', { procedureName => 'propertyFormatError', pollInterval  => '1', timeout       => 600, actualParameter => [
+            {actualParameterName => 'resource', value => "$::gAgentResource"},
+            ]
+        });
+    my $jobId = 0;
+    my $status = '';
+    assertOK($xpath, 'runProcedure finished');
+    if ($xpath) {
+        $jobId  = $xpath->findvalue('//jobId');
+        $status = $xpath->findvalue('//status');
+        assertTrue($jobId && $jobId ne "",'valid job id');
+        assertEq('completed',$status,"job $jobId complete");
+        if ($status ne 'completed') {
+            assertOK($::N->abortJob($jobId, {force => 1}));
+        }
+    }
+    $xpath = $::N->getJobDetails($jobId);
+    my $ws = $xpath->findvalue('//workspace/winUNC');
+    if (!isWindows()) {
+        $ws = $xpath->findvalue('//workspace/unix');
+    }
+    my $data = runfakepropertyFormatError();
+    writeFile("$::gCurrentTestDir/propertyFormatError.log","====Job 
+
+Details====\n$xpath->{_xml}\n====LOG====\n$data\n");
+    assertSubstring('Error: Property format error', $data, 'propertyFormatError output');
+};
+
+sub runfakepropertyFormatError
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Property : ID1
+Current Pair: ID1
+Current idDefect: ID1
+Current valueDefect: 
+Error: Property format error
+action updateDefects returned:";
+    return $log;
+} 

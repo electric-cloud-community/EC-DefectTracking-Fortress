@@ -1,0 +1,243 @@
+# -*-Perl-*-
+# fortress.ntest -
+#
+# Exercise procedure LinkDefects in EC-DefectTracking-Fortress
+#
+# Copyright (c) 2005-2010 Electric Cloud, Inc.
+# All rights reserved
+
+use strict;
+use ECTest;
+use ECSelenium;
+require "$::gTestFileDir/../../EC-DefectTracking/systemtest/ntest.common";
+$::gProjectImported = 0;
+$::gConfigCreated = 0;
+
+
+ntest 'noDefaultProperty', {}, sub {
+    my $data = runfakenoDefaultProperty();
+    assertSubstring('No defect IDs found, returning', $data, 'noDefaultProperty output');
+};
+
+sub runfakenoDefaultProperty
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Parsing property /myJob/ecscm_changeLogs for defect IDs
+Error querying for /myJob/ecscm_changeLogs as a property sheet: error [NoSuchProperty]: Invalid property path: Evaluating property '/myJob/ecscm_changeLogs' in jobStep 'runMethod'
+Found job 'job_6296_201010121400'
+Failed to find property 'ecscm_changeLogs'
+Evaluation failed
+Details:
+Evaluating property '/myJob/ecscm_changeLogs' in jobStep 'runMethod'
+Found job 'job_6296_201010121400'
+Failed to find property 'ecscm_changeLogs'
+Evaluation failed
+Trying to query for /myJob/ecscm_changeLogs as property...
+Error querying for /myJob/ecscm_changeLogs as a property: error [NoSuchProperty]: Property '/myJob/ecscm_changeLogs' does not exist
+Details:
+Evaluating property '/myJob/ecscm_changeLogs' in jobStep 'runMethod'
+Found job 'job_6296_201010121400'
+Failed to find property 'ecscm_changeLogs'
+Evaluation failed
+
+No defect IDs found, returning
+action linkDefects returned:";
+    return $log;
+}
+
+ntest 'emptyPropertiesInDefaultPropertySheet', {}, sub {
+    my $data = runfakeemptyPropertiesInDefaultPropertySheet();
+    assertSubstring('No change logs found, returning', $data, 'emptyPropertiesInDefaultPropertySheet-logs output');
+    assertSubstring('No defect IDs found, returning', $data, 'emptyPropertiesInDefaultPropertySheet-ids output');
+};
+
+sub runfakeemptyPropertiesInDefaultPropertySheet
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Parsing property /myJob/ecscm_changeLogs for defect IDs
+No change logs found, returning
+No defect IDs found, returning
+action linkDefects returned:";
+    return $log;
+}
+
+ntest 'defaultPropertyContainsInaccessibleDefectIDs', {}, sub {
+    my $data = runfakedefaultPropertyContainsInaccessibleDefectIDs();
+    assertSubstring('No defect IDs found, returning', $data, 'defaultPropertyContainsInaccessibleDefectIDs output');
+};
+
+sub runfakedefaultPropertyContainsInaccessibleDefectIDs
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Parsing property /myJob/ecscm_changeLogs for defect IDs
+Error querying for /myJob/ecscm_changeLogs as a property sheet: error [InvalidPropertyValue]: Incorrect object type at '/myJob/ecscm_changeLogs': string[ecscm_changeLogs=aaa-111,id=82717]
+Trying to query for /myJob/ecscm_changeLogs as property...
+Using supplied prefix=ID to search for defects IDs
+No defect IDs found, returning
+action linkDefects returned:";
+    return $log;
+}
+
+ntest 'defaultPropertyContainsOneDefectID', {}, sub {
+    my $data = runfakedefaultPropertyContainsOneDefectID();
+    assertSubstring('Found defect ID: ID2', $data, 'defaultPropertyContainsOneDefectID-id output');
+    assertSubstring('Creating link /commander/pages/EC-DefectTracking-Fortress-', $data, 'defaultPropertyContainsOneDefectID-link output');
+};
+
+sub runfakedefaultPropertyContainsOneDefectID
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Parsing property /myJob/ecscm_changeLogs for defect IDs
+Error querying for /myJob/ecscm_changeLogs as a property sheet: error [InvalidPropertyValue]: Incorrect object type at '/myJob/ecscm_changeLogs': string[ecscm_changeLogs=ID2,id=82726]
+Trying to query for /myJob/ecscm_changeLogs as property...
+Using supplied prefix=ID to search for defects IDs
+Found defect ID: ID2
+Name: ID 2: Testing only, STATUS=REOPENED
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6299
+action linkDefects returned: 
+";
+    return $log;
+}
+
+ntest 'defaultPropertyContainsChangeLogOutput', {}, sub {
+    my $data = runfakedefaultPropertyContainsChangeLogOutput();
+    assertSubstring(outdent('
+           |Found defect ID: ID1
+            Found defect ID: ID2
+            Found defect ID: ID3
+            '), $data, 'defaultPropertyContainsChangeLogOutput-ids output');
+    assertSubstring('Creating link /commander/pages/EC-DefectTracking-Fortress-', $data, 'defaultPropertyContainsChangeLogOutput-link output');
+};
+
+sub runfakedefaultPropertyContainsChangeLogOutput
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Parsing property /myJob/ecscm_changeLogs for defect IDs
+Error querying for /myJob/ecscm_changeLogs as a property sheet: error [InvalidPropertyValue]: Incorrect object type at '/myJob/ecscm_changeLogs': string[ecscm_changeLogs=------------------------- djatnieks -------------------------
+
+Change 43211 by djatnieks\@djatnieks-integrations-main on 2010/04/09 16:01:54
+
+Fix localized MultiSeries and VOT reports not getting registered in reports tab;
+refactor perl command block code,id=82741]
+Trying to query for /myJob/ecscm_changeLogs as property...
+Using supplied prefix=ID to search for defects IDs
+Found defect ID: ID1
+Found defect ID: ID2
+Found defect ID: ID3
+Found defect ID: Fortress/main/project/ec_setup.pl#1
+Found defect ID: Fortress/main/project/manifest.pl#3
+Name: ID 1: error no compila el proyecto, STATUS=RESOLVED
+Name: ID 3: It's full of political backstabbers, STATUS=REOPENED
+Name: ID 2: Testing only, STATUS=REOPENED
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6300
+action linkDefects returned:";
+    return $log;
+}
+
+ntest 'defaultPropertySheetContainsTwoDefectIDs', {}, sub {
+    my $data = runfakedefaultPropertySheetContainsTwoDefectIDs();
+    assertSubstring(outdent('
+           |Found defect ID: ID2
+            Found defect ID: ID1
+            '), $data, 'defaultPropertySheetContainsTwoDefectIDs-ids output');
+    assertSubstring('Creating link /commander/pages/EC-DefectTracking-Fortress-', $data, 'defaultPropertySheetContainsTwoDefectIDs-link output');
+};
+
+sub runfakedefaultPropertySheetContainsTwoDefectIDs
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Parsing property /myJob/ecscm_changeLogs for defect IDs
+Using supplied prefix=ID to search for defects IDs
+Found defect ID: ID2
+Found defect ID: ID1
+Name: ID 1: error no compila el proyecto, STATUS=RESOLVED
+Name: ID 2: Testing only, STATUS=REOPENED
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6301
+action linkDefects returned:";
+    return $log;
+}
+
+ntest 'customProperty', {}, sub {
+    my $data = runfakecustomProperty();
+    assertSubstring('Parsing property /myJob/customProperty for defect IDs', $data,'customProperty-property output');
+    assertSubstring(outdent('
+           |Found defect ID: ID1
+            Found defect ID: ID2
+            Found defect ID: ID3
+            '), $data, 'customProperty-ids output');
+    assertSubstring('Creating link /commander/pages/EC-DefectTracking-Fortress-', $data, 'customProperty-link output');    
+};
+
+sub runfakecustomProperty
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Parsing property /myJob/customProperty for defect IDs
+Error querying for /myJob/customProperty as a property sheet: error [InvalidPropertyValue]: Incorrect object type at '/myJob/customProperty': string[customProperty=------------------------- djatnieks -------------------------
+
+Change 43211 by djatnieks\@djatnieks-integrations-main on 2010/04/09 16:01:54
+
+Fix localized MultiSeries and VOT reports not getting registered in reports tab;
+refactor perl command block code,id=82784]
+Trying to query for /myJob/customProperty as property...
+Using supplied prefix=ID to search for defects IDs
+Found defect ID: ID1
+Found defect ID: ID2
+Found defect ID: ID3
+Found defect ID: Fortress/main/project/ec_setup.pl#1
+Found defect ID: Fortress/main/project/manifest.pl#3
+Name: ID 1: error no compila el proyecto, STATUS=RESOLVED
+Name: ID 3: It's full of political backstabbers, STATUS=REOPENED
+Name: ID 2: Testing only, STATUS=REOPENED
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6302
+action linkDefects returned:";
+    return $log;
+}
+
+ntest 'customPropertySheet', {}, sub {
+    my $data = runfakecustomPropertySheet();
+    assertSubstring('Parsing property /myJob/customPropertySheet/ for defect IDs', $data,'customPropertySheet-propertySheet output');
+    assertSubstring(outdent('
+           |Found defect ID: ID1
+            Found defect ID: ID2
+            '), $data, 'customPropertySheet-ids output');
+    assertSubstring('Creating link /commander/pages/EC-DefectTracking-Fortress-', $data, 'customPropertySheet-link output');
+};
+
+sub runfakecustomPropertySheet
+{
+    my $log= "Getting ECDefectTracking bootstrap code from /myProject/procedure_helpers/bootstrap
+Running boostrap for fortressCfgTestServer ...
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Cfg..
+Loading /plugins/EC-DefectTracking-1.1.1.0/project/defectTracking_driver/ECDefectTracking::Base::Driver..
+Parsing property /myJob/customPropertySheet/ for defect IDs
+Using supplied prefix=ID to search for defects IDs
+Found defect ID: ID1
+Found defect ID: ID2
+Name: ID 1: error no compila el proyecto, STATUS=RESOLVED
+Name: ID 2: Testing only, STATUS=REOPENED
+Creating link /commander/pages/EC-DefectTracking-Fortress-1.0.0.0/reports?jobId=6303
+action linkDefects returned:";
+    return $log;
+}
+
